@@ -13,6 +13,7 @@ add_llvm_library(MLIRTransforms
   LoopTiling.cpp
   LoopUnrollAndJam.cpp
   LoopUnroll.cpp
+  MaterializeVectors.cpp
   MemRefDataFlowOpt.cpp
   PipelineDataTransfer.cpp
   SimplifyAffineStructures.cpp
@@ -20,7 +21,8 @@ add_llvm_library(MLIRTransforms
   Vectorize.cpp
   ViewOpGraph.cpp
   ViewRegionGraph.cpp
-
+  VectorizeOuterLoop.cpp
+  
   ADDITIONAL_HEADER_DIRS
   ${MLIR_MAIN_INCLUDE_DIR}/mlir/Transforms
   )
