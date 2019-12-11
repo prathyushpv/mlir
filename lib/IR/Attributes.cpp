@@ -214,31 +214,35 @@ double FloatAttr::getValueAsDouble(APFloat value) {
 }
 
 /// Verify construction invariants.
-static LogicalResult verifyFloatTypeInvariants(Optional<Location> loc,
+static LogicalResult verifyFloatTypeInvariants(llvm::Optional<Location> loc,
                                                Type type) {
-  if (!type.isa<FloatType>())
-    return emitOptionalError(loc, "expected floating point type");
+  if (!type.isa<FloatType>()) {
+    if (loc)
+      emitError(*loc, "expected floating point type");
+    return failure();
+  }
   return success();
 }
 
-LogicalResult FloatAttr::verifyConstructionInvariants(Optional<Location> loc,
-                                                      MLIRContext *ctx,
-                                                      Type type, double value) {
+LogicalResult FloatAttr::verifyConstructionInvariants(
+    llvm::Optional<Location> loc, MLIRContext *ctx, Type type, double value) {
   return verifyFloatTypeInvariants(loc, type);
 }
 
-LogicalResult FloatAttr::verifyConstructionInvariants(Optional<Location> loc,
-                                                      MLIRContext *ctx,
-                                                      Type type,
-                                                      const APFloat &value) {
+LogicalResult
+FloatAttr::verifyConstructionInvariants(llvm::Optional<Location> loc,
+                                        MLIRContext *ctx, Type type,
+                                        const APFloat &value) {
   // Verify that the type is correct.
   if (failed(verifyFloatTypeInvariants(loc, type)))
     return failure();
 
   // Verify that the type semantics match that of the value.
   if (&type.cast<FloatType>().getFloatSemantics() != &value.getSemantics()) {
-    return emitOptionalError(
-        loc, "FloatAttr type doesn't match the type implied by its value");
+    if (loc)
+      emitError(*loc,
+                "FloatAttr type doesn't match the type implied by its value");
+    return failure();
   }
   return success();
 }
@@ -326,13 +330,14 @@ Identifier OpaqueAttr::getDialectNamespace() const {
 StringRef OpaqueAttr::getAttrData() const { return getImpl()->attrData; }
 
 /// Verify the construction of an opaque attribute.
-LogicalResult OpaqueAttr::verifyConstructionInvariants(Optional<Location> loc,
-                                                       MLIRContext *context,
-                                                       Identifier dialect,
-                                                       StringRef attrData,
-                                                       Type type) {
-  if (!Dialect::isValidNamespace(dialect.strref()))
-    return emitOptionalError(loc, "invalid dialect namespace '", dialect, "'");
+LogicalResult OpaqueAttr::verifyConstructionInvariants(
+    llvm::Optional<Location> loc, MLIRContext *context, Identifier dialect,
+    StringRef attrData, Type type) {
+  if (!Dialect::isValidNamespace(dialect.strref())) {
+    if (loc)
+      emitError(*loc) << "invalid dialect namespace '" << dialect << "'";
+    return failure();
+  }
   return success();
 }
 

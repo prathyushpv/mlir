@@ -324,7 +324,7 @@ public:
 
   /// Parse an optional trailing location.
   ///
-  ///   trailing-location     ::= (`loc` `(` location `)`)?
+  ///   trailing-location     ::= location?
   ///
   ParseResult parseOptionalTrailingLocation(Location &loc) {
     // If there is a 'loc' we parse a trailing location.
@@ -1054,13 +1054,8 @@ ParseResult Parser::parseStridedLayout(int64_t &offset,
 
 /// Parse a memref type.
 ///
-///   memref-type ::= ranked-memref-type | unranked-memref-type
-///
-///   ranked-memref-type ::= `memref` `<` dimension-list-ranked type
-///                          (`,` semi-affine-map-composition)? (`,`
-///                          memory-space)? `>`
-///
-///   unranked-memref-type ::= `memref` `<*x` type (`,` memory-space)? `>`
+///   memref-type ::= `memref` `<` dimension-list-ranked type
+///                   (`,` semi-affine-map-composition)? (`,` memory-space)? `>`
 ///
 ///   semi-affine-map-composition ::= (semi-affine-map `,` )* semi-affine-map
 ///   memory-space ::= integer-literal /* | TODO: address-space-id */
@@ -1071,20 +1066,9 @@ Type Parser::parseMemRefType() {
   if (parseToken(Token::less, "expected '<' in memref type"))
     return nullptr;
 
-  bool isUnranked;
   SmallVector<int64_t, 4> dimensions;
-
-  if (consumeIf(Token::star)) {
-    // This is an unranked memref type.
-    isUnranked = true;
-    if (parseXInDimensionList())
-      return nullptr;
-
-  } else {
-    isUnranked = false;
-    if (parseDimensionListRanked(dimensions))
-      return nullptr;
-  }
+  if (parseDimensionListRanked(dimensions))
+    return nullptr;
 
   // Parse the element type.
   auto typeLoc = getToken().getLoc();
@@ -1109,8 +1093,6 @@ Type Parser::parseMemRefType() {
       consumeToken(Token::integer);
       parsedMemorySpace = true;
     } else {
-      if (isUnranked)
-        return emitError("cannot have affine map for unranked memref type");
       if (parsedMemorySpace)
         return emitError("expected memory space to be last in memref type");
       if (getToken().is(Token::kw_offset)) {
@@ -1148,10 +1130,6 @@ Type Parser::parseMemRefType() {
     if (parseToken(Token::greater, "expected ',' or '>' in memref type"))
       return nullptr;
   }
-
-  if (isUnranked)
-    return UnrankedMemRefType::getChecked(elementType, memorySpace,
-                                          getEncodedSourceLocation(typeLoc));
 
   return MemRefType::getChecked(dimensions, elementType, affineMapComposition,
                                 memorySpace, getEncodedSourceLocation(typeLoc));
@@ -3541,14 +3519,10 @@ Value *OperationParser::createForwardRefPlaceholder(SMLoc loc, Type type) {
 
 /// Parse an operation.
 ///
-///  operation         ::= op-result-list?
-///                        (generic-operation | custom-operation)
-///                        trailing-location?
-///  generic-operation ::= string-literal '(' ssa-use-list? ')' attribute-dict?
-///                        `:` function-type
-///  custom-operation  ::= bare-id custom-operation-format
-///  op-result-list    ::= op-result (`,` op-result)* `=`
-///  op-result         ::= ssa-id (`:` integer-literal)
+///  operation ::=
+///    operation-result? string '(' ssa-use-list? ')' attribute-dict?
+///    `:` function-type trailing-location?
+///  operation-result ::= ssa-id ((`:` integer-literal) | (`,` ssa-id)*) `=`
 ///
 ParseResult OperationParser::parseOperation() {
   auto loc = getToken().getLoc();

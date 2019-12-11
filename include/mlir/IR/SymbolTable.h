@@ -23,16 +23,15 @@
 
 namespace mlir {
 class Identifier;
+class MLIRContext;
 class Operation;
 
 /// This class allows for representing and managing the symbol table used by
-/// operations with the 'SymbolTable' trait. Inserting into and erasing from
-/// this SymbolTable will also insert and erase from the Operation given to it
-/// at construction.
+/// operations with the 'SymbolTable' trait.
 class SymbolTable {
 public:
   /// Build a symbol table with the symbols within the given operation.
-  SymbolTable(Operation *symbolTableOp);
+  SymbolTable(Operation *op);
 
   /// Look up a symbol with the specified name, returning null if no such
   /// name exists. Names never include the @ on them.
@@ -45,15 +44,14 @@ public:
   void erase(Operation *symbol);
 
   /// Insert a new symbol into the table, and rename it as necessary to avoid
-  /// collisions. Also insert at the specified location in the body of the
-  /// associated operation.
-  void insert(Operation *symbol, Block::iterator insertPt = {});
+  /// collisions.
+  void insert(Operation *symbol);
+
+  /// Returns the context held by this symbol table.
+  MLIRContext *getContext() const { return context; }
 
   /// Return the name of the attribute used for symbol names.
   static StringRef getSymbolAttrName() { return "sym_name"; }
-
-  /// Returns the associated operation.
-  Operation *getOp() const { return symbolTableOp; }
 
   //===--------------------------------------------------------------------===//
   // Symbol Utilities
@@ -62,7 +60,7 @@ public:
   /// Returns the operation registered with the given symbol name with the
   /// regions of 'symbolTableOp'. 'symbolTableOp' is required to be an operation
   /// with the 'OpTrait::SymbolTable' trait.
-  static Operation *lookupSymbolIn(Operation *op, StringRef symbol);
+  static Operation *lookupSymbolIn(Operation *symbolTableOp, StringRef symbol);
 
   /// Returns the operation registered with the given symbol name within the
   /// closest parent operation of, or including, 'from' with the
@@ -120,11 +118,11 @@ public:
   /// are any unknown operations that may potentially be symbol tables.
   static Optional<UseRange> getSymbolUses(StringRef symbol, Operation *from);
 
-  /// Return if the given symbol is known to have no uses that are nested
-  /// within the given operation 'from'. This does not traverse into any nested
-  /// symbol tables, and will also only count uses on 'from' if it does not also
-  /// define a symbol table. This is because we treat the region as the boundary
-  /// of the symbol table, and not the op itself. This function will also return
+  /// Return if the given symbol is known to have no uses that are nested within
+  /// the given operation 'from'. This does not traverse into any nested symbol
+  /// tables, and will also only count uses on 'from' if it does not also define
+  /// a symbol table. This is because we treat the region as the boundary of
+  /// the symbol table, and not the op itself. This function will also return
   /// false if there are any unknown operations that may potentially be symbol
   /// tables. This doesn't necessarily mean that there are no uses, we just
   /// can't convervatively prove it.
@@ -143,7 +141,7 @@ public:
                                                            Operation *from);
 
 private:
-  Operation *symbolTableOp;
+  MLIRContext *context;
 
   /// This is a mapping from a name to the symbol with that name.
   llvm::StringMap<Operation *> symbolTable;

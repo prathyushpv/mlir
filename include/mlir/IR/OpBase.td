@@ -221,9 +221,6 @@ def IsTensorTypePred : CPred<"$_self.isa<TensorType>()">;
 // Whether a type is a MemRefType.
 def IsMemRefTypePred : CPred<"$_self.isa<MemRefType>()">;
 
-// Whether a type is an  IsUnrankedMemRefType
-def IsUnrankedMemRefTypePred : CPred<"$_self.isa<UnrankedMemRefType>()">;
-
 // Whether a type is a ShapedType.
 def IsShapedTypePred : CPred<"$_self.isa<ShapedType>()">;
 
@@ -489,10 +486,6 @@ class 2DTensorOf<list<Type> allowedTypes> : TensorRankOf<allowedTypes, [2]>;
 class 3DTensorOf<list<Type> allowedTypes> : TensorRankOf<allowedTypes, [3]>;
 class 4DTensorOf<list<Type> allowedTypes> : TensorRankOf<allowedTypes, [4]>;
 
-// Unranked Memref type
-def AnyUnrankedMemRef : 
-    ShapedContainerType<[AnyType], 
-                        IsUnrankedMemRefTypePred, "unranked.memref">;
 // Memref type.
 
 // Memrefs are blocks of data with fixed type and rank.
@@ -500,8 +493,6 @@ class MemRefOf<list<Type> allowedTypes> :
     ShapedContainerType<allowedTypes, IsMemRefTypePred, "memref">;
 
 def AnyMemRef : MemRefOf<[AnyType]>;
-
-def AnyRankedOrUnrankedMemRef: AnyTypeOf<[AnyUnrankedMemRef, AnyMemRef]>;
 
 // Memref declarations handle any memref, independent of rank, size, (static or
 // dynamic), layout, or memory space.

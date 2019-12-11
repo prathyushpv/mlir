@@ -33,20 +33,28 @@ unsigned QuantizedType::getFlags() const {
 }
 
 LogicalResult QuantizedType::verifyConstructionInvariants(
-    Optional<Location> loc, MLIRContext *context, unsigned flags,
+    llvm::Optional<Location> loc, MLIRContext *context, unsigned flags,
     Type storageType, Type expressedType, int64_t storageTypeMin,
     int64_t storageTypeMax) {
   // Verify that the storage type is integral.
   // This restriction may be lifted at some point in favor of using bf16
   // or f16 as exact representations on hardware where that is advantageous.
   auto intStorageType = storageType.dyn_cast<IntegerType>();
-  if (!intStorageType)
-    return emitOptionalError(loc, "storage type must be integral");
+  if (!intStorageType) {
+    if (loc) {
+      emitError(*loc, "storage type must be integral");
+    }
+    return failure();
+  }
   unsigned integralWidth = intStorageType.getWidth();
 
   // Verify storage width.
-  if (integralWidth == 0 || integralWidth > MaxStorageBits)
-    return emitOptionalError(loc, "illegal storage type size: ", integralWidth);
+  if (integralWidth == 0 || integralWidth > MaxStorageBits) {
+    if (loc) {
+      emitError(*loc, "illegal storage type size: ") << integralWidth;
+    }
+    return failure();
+  }
 
   // Verify storageTypeMin and storageTypeMax.
   bool isSigned =
@@ -58,8 +66,11 @@ LogicalResult QuantizedType::verifyConstructionInvariants(
   if (storageTypeMax - storageTypeMin <= 0 ||
       storageTypeMin < defaultIntegerMin ||
       storageTypeMax > defaultIntegerMax) {
-    return emitOptionalError(loc, "illegal storage min and storage max: (",
-                             storageTypeMin, ":", storageTypeMax, ")");
+    if (loc) {
+      emitError(*loc, "illegal storage min and storage max: (")
+          << storageTypeMin << ":" << storageTypeMax << ")";
+    }
+    return failure();
   }
   return success();
 }
@@ -224,7 +235,7 @@ AnyQuantizedType AnyQuantizedType::getChecked(unsigned flags, Type storageType,
 }
 
 LogicalResult AnyQuantizedType::verifyConstructionInvariants(
-    Optional<Location> loc, MLIRContext *context, unsigned flags,
+    llvm::Optional<Location> loc, MLIRContext *context, unsigned flags,
     Type storageType, Type expressedType, int64_t storageTypeMin,
     int64_t storageTypeMax) {
   if (failed(QuantizedType::verifyConstructionInvariants(
@@ -236,8 +247,12 @@ LogicalResult AnyQuantizedType::verifyConstructionInvariants(
   // Verify that the expressed type is floating point.
   // If this restriction is ever eliminated, the parser/printer must be
   // extended.
-  if (expressedType && !expressedType.isa<FloatType>())
-    return emitOptionalError(loc, "expressed type must be floating point");
+  if (expressedType && !expressedType.isa<FloatType>()) {
+    if (loc) {
+      emitError(*loc, "expressed type must be floating point");
+    }
+    return failure();
+  }
 
   return success();
 }
@@ -265,7 +280,7 @@ UniformQuantizedType::getChecked(unsigned flags, Type storageType,
 }
 
 LogicalResult UniformQuantizedType::verifyConstructionInvariants(
-    Optional<Location> loc, MLIRContext *context, unsigned flags,
+    llvm::Optional<Location> loc, MLIRContext *context, unsigned flags,
     Type storageType, Type expressedType, double scale, int64_t zeroPoint,
     int64_t storageTypeMin, int64_t storageTypeMax) {
   if (failed(QuantizedType::verifyConstructionInvariants(
@@ -276,19 +291,30 @@ LogicalResult UniformQuantizedType::verifyConstructionInvariants(
 
   // Uniform quantization requires fully expressed parameters, including
   // expressed type.
-  if (!expressedType)
-    return emitOptionalError(loc,
-                             "uniform quantization requires expressed type");
+  if (!expressedType) {
+    if (loc) {
+      emitError(*loc, "uniform quantization requires expressed type");
+    }
+    return failure();
+  }
 
   // Verify that the expressed type is floating point.
   // If this restriction is ever eliminated, the parser/printer must be
   // extended.
-  if (!expressedType.isa<FloatType>())
-    return emitOptionalError(loc, "expressed type must be floating point");
+  if (!expressedType.isa<FloatType>()) {
+    if (loc) {
+      emitError(*loc, "expressed type must be floating point");
+    }
+    return failure();
+  }
 
   // Verify scale.
-  if (scale <= 0.0 || std::isinf(scale) || std::isnan(scale))
-    return emitOptionalError(loc, "illegal scale: ", scale);
+  if (scale <= 0.0 || std::isinf(scale) || std::isnan(scale)) {
+    if (loc) {
+      emitError(*loc) << "illegal scale: " << scale;
+    }
+    return failure();
+  }
 
   return success();
 }
@@ -322,7 +348,7 @@ UniformQuantizedPerAxisType UniformQuantizedPerAxisType::getChecked(
 }
 
 LogicalResult UniformQuantizedPerAxisType::verifyConstructionInvariants(
-    Optional<Location> loc, MLIRContext *context, unsigned flags,
+    llvm::Optional<Location> loc, MLIRContext *context, unsigned flags,
     Type storageType, Type expressedType, ArrayRef<double> scales,
     ArrayRef<int64_t> zeroPoints, int32_t quantizedDimension,
     int64_t storageTypeMin, int64_t storageTypeMax) {
@@ -334,25 +360,40 @@ LogicalResult UniformQuantizedPerAxisType::verifyConstructionInvariants(
 
   // Uniform quantization requires fully expressed parameters, including
   // expressed type.
-  if (!expressedType)
-    return emitOptionalError(loc,
-                             "uniform quantization requires expressed type");
+  if (!expressedType) {
+    if (loc) {
+      emitError(*loc, "uniform quantization requires expressed type");
+    }
+    return failure();
+  }
 
   // Verify that the expressed type is floating point.
   // If this restriction is ever eliminated, the parser/printer must be
   // extended.
-  if (!expressedType.isa<FloatType>())
-    return emitOptionalError(loc, "expressed type must be floating point");
+  if (!expressedType.isa<FloatType>()) {
+    if (loc) {
+      emitError(*loc, "expressed type must be floating point");
+    }
+    return failure();
+  }
 
   // Ensure that the number of scales and zeroPoints match.
-  if (scales.size() != zeroPoints.size())
-    return emitOptionalError(loc, "illegal number of scales and zeroPoints: ",
-                             scales.size(), ", ", zeroPoints.size());
+  if (scales.size() != zeroPoints.size()) {
+    if (loc) {
+      emitError(*loc, "illegal number of scales and zeroPoints: ")
+          << scales.size() << ", " << zeroPoints.size();
+    }
+    return failure();
+  }
 
   // Verify scale.
   for (double scale : scales) {
-    if (scale <= 0.0 || std::isinf(scale) || std::isnan(scale))
-      return emitOptionalError(loc, "illegal scale: ", scale);
+    if (scale <= 0.0 || std::isinf(scale) || std::isnan(scale)) {
+      if (loc) {
+        emitError(*loc) << "illegal scale: " << scale;
+      }
+      return failure();
+    }
   }
 
   return success();

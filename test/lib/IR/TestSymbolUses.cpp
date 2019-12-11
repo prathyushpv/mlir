@@ -15,7 +15,6 @@
 // limitations under the License.
 // =============================================================================
 
-#include "TestDialect.h"
 #include "mlir/IR/Function.h"
 #include "mlir/Pass/Pass.h"
 
@@ -23,11 +22,10 @@ using namespace mlir;
 
 namespace {
 /// This is a symbol test pass that tests the symbol uselist functionality
-/// provided by the symbol table along with erasing from the symbol table.
+/// provided by the symbol table.
 struct SymbolUsesPass : public ModulePass<SymbolUsesPass> {
   void runOnModule() override {
     auto module = getModule();
-    std::vector<FuncOp> ops_to_delete;
 
     for (FuncOp func : module.getOps<FuncOp>()) {
       // Test computing uses on a non symboltable op.
@@ -47,8 +45,6 @@ struct SymbolUsesPass : public ModulePass<SymbolUsesPass> {
       // Test the functionality of symbolKnownUseEmpty.
       if (func.symbolKnownUseEmpty(module)) {
         func.emitRemark() << "function has no uses";
-        if (func.getBody().empty())
-          ops_to_delete.push_back(func);
         continue;
       }
 
@@ -61,18 +57,6 @@ struct SymbolUsesPass : public ModulePass<SymbolUsesPass> {
       }
       func.emitRemark() << "function has " << llvm::size(*symbolUses)
                         << " uses";
-    }
-
-    for (FuncOp func : ops_to_delete) {
-      // In order to test the SymbolTable::erase method, also erase completely
-      // useless functions.
-      SymbolTable table(module);
-      auto func_name = func.getName();
-      assert(table.lookup(func_name) && "expected no unknown operations");
-      table.erase(func);
-      assert(!table.lookup(func_name) &&
-             "expected erased operation to be unknown now");
-      module.emitRemark() << func_name << " function successfully erased";
     }
   }
 };

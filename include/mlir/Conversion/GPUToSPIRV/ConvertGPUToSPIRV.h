@@ -27,12 +27,10 @@
 namespace mlir {
 class SPIRVTypeConverter;
 /// Appends to a pattern list additional patterns for translating GPU Ops to
-/// SPIR-V ops. Needs the workgroup size as input since SPIR-V/Vulkan requires
-/// the workgroup size to be statically specified.
+/// SPIR-V ops.
 void populateGPUToSPIRVPatterns(MLIRContext *context,
                                 SPIRVTypeConverter &typeConverter,
-                                OwningRewritePatternList &patterns,
-                                ArrayRef<int64_t> workGroupSize);
+                                OwningRewritePatternList &patterns);
 } // namespace mlir
 
 #endif // MLIR_CONVERSION_GPUTOSPIRV_CONVERTGPUTOSPIRV_H

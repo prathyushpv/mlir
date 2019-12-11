@@ -234,12 +234,9 @@ Expected<std::unique_ptr<ExecutionEngine>> ExecutionEngine::create(
     auto objectLayer = std::make_unique<RTDyldObjectLinkingLayer>(
         session, []() { return std::make_unique<SectionMemoryManager>(); });
     auto dataLayout = deserModule->getDataLayout();
-    llvm::orc::JITDylib *mainJD = session.getJITDylibByName("<main>");
-    if (!mainJD)
-      mainJD = &session.createJITDylib("<main>");
 
     // Resolve symbols that are statically linked in the current process.
-    mainJD->addGenerator(
+    session.getMainJITDylib().addGenerator(
         cantFail(DynamicLibrarySearchGenerator::GetForCurrentProcess(
             dataLayout.getGlobalPrefix())));
 

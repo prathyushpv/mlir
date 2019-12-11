@@ -80,11 +80,13 @@ Identifier OpaqueType::getDialectNamespace() const {
 StringRef OpaqueType::getTypeData() const { return getImpl()->typeData; }
 
 /// Verify the construction of an opaque type.
-LogicalResult OpaqueType::verifyConstructionInvariants(Optional<Location> loc,
-                                                       MLIRContext *context,
-                                                       Identifier dialect,
-                                                       StringRef typeData) {
-  if (!Dialect::isValidNamespace(dialect.strref()))
-    return emitOptionalError(loc, "invalid dialect namespace '", dialect, "'");
+LogicalResult OpaqueType::verifyConstructionInvariants(
+    llvm::Optional<Location> loc, MLIRContext *context, Identifier dialect,
+    StringRef typeData) {
+  if (!Dialect::isValidNamespace(dialect.strref())) {
+    if (loc)
+      emitError(*loc) << "invalid dialect namespace '" << dialect << "'";
+    return failure();
+  }
   return success();
 }

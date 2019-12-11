@@ -43,12 +43,14 @@ using namespace mlir;
 
 /// Encodes an SPIR-V instruction with the given `opcode` and `operands` into
 /// the given `binary` vector.
-static LogicalResult encodeInstructionInto(SmallVectorImpl<uint32_t> &binary,
-                                           spirv::Opcode op,
-                                           ArrayRef<uint32_t> operands) {
+LogicalResult encodeInstructionInto(SmallVectorImpl<uint32_t> &binary,
+                                    spirv::Opcode op,
+                                    ArrayRef<uint32_t> operands) {
   uint32_t wordCount = 1 + operands.size();
   binary.push_back(spirv::getPrefixedOpcode(wordCount, op));
+  if (!operands.empty()) {
     binary.append(operands.begin(), operands.end());
+  }
   return success();
 }
 
@@ -80,18 +82,6 @@ static LogicalResult visitInPrettyBlockOrder(
       return failure();
   }
   return success();
-}
-
-/// Returns the last structured control flow op's merge block if the given
-/// `block` contains any structured control flow op. Otherwise returns nullptr.
-static Block *getLastStructuredControlFlowOpMergeBlock(Block *block) {
-  for (Operation &op : llvm::reverse(block->getOperations())) {
-    if (auto selectionOp = dyn_cast<spirv::SelectionOp>(op))
-      return selectionOp.getMergeBlock();
-    if (auto loopOp = dyn_cast<spirv::LoopOp>(op))
-      return loopOp.getMergeBlock();
-  }
-  return nullptr;
 }
 
 namespace {
@@ -1385,17 +1375,11 @@ LogicalResult Serializer::emitPhiForBlockArguments(Block *block) {
   // to this block.
   SmallVector<std::pair<Block *, Operation::operand_iterator>, 4> predecessors;
   for (Block *predecessor : block->getPredecessors()) {
-    auto *terminator = predecessor->getTerminator();
-    // Check whether this predecessor block contains a structured control flow
-    // op. If so, the structured control flow op will be serialized to multiple
-    // SPIR-V blocks. The branch op jumping to the OpPhi's block then resides in
-    // the last structured control flow op's merge block.
-    if (auto *merge = getLastStructuredControlFlowOpMergeBlock(predecessor))
-      predecessor = merge;
-    if (auto branchOp = dyn_cast<spirv::BranchOp>(terminator)) {
+    auto *op = predecessor->getTerminator();
+    if (auto branchOp = dyn_cast<spirv::BranchOp>(op)) {
       predecessors.emplace_back(predecessor, branchOp.operand_begin());
     } else {
-      return terminator->emitError("unimplemented terminator for Phi creation");
+      return op->emitError("unimplemented terminator for Phi creation");
     }
   }
 

@@ -136,10 +136,3 @@ func @create_vector_mask() {
 
   return
 }
-
-// CHECK-LABEL: constant_vector_mask
-func @constant_vector_mask() {
-  // CHECK: vector.constant_mask [3, 2] : vector<4x3xi1>
-  %0 = vector.constant_mask [3, 2] : vector<4x3xi1>
-  return
-}
